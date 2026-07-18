@@ -3,6 +3,8 @@ package com.nicko.ecommerce.product;
 import com.nicko.ecommerce.exception.ProductPurchaseException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ public class ProductService {
     private final ProductRepository repository;
     private final ProductMapper mapper;
 
+    @CacheEvict(value = "products", allEntries = true)
     public Integer createProduct(
             ProductRequest request
     ) {
@@ -25,6 +28,7 @@ public class ProductService {
         return repository.save(product).getId();
     }
 
+    @Cacheable(value = "products", key = "#id")
     public ProductResponse findById(Integer id) {
         return repository.findById(id)
                 .map(mapper::toProductResponse)
@@ -39,6 +43,7 @@ public class ProductService {
     }
 
     @Transactional(rollbackFor = ProductPurchaseException.class)
+    @CacheEvict(value = "products", allEntries = true)
     public List<ProductPurchaseResponse> purchaseProducts(
             List<ProductPurchaseRequest> request
     ) {
