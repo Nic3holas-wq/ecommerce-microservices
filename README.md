@@ -11,7 +11,7 @@ Below is the high-level system architecture of the microservices ecosystem. It i
 ```mermaid
 graph TD
     %% Ingress and Security
-    Client[Angular Frontend] -->|HTTP / Request| GW[API Gateway: Port 8222]
+    Client[Angular Frontend] -->|HTTP Request| GW[API Gateway: Port 8222]
     GW -.->|Validate JWT| Keycloak[Keycloak: Port 9098]
     GW -.->|Rate Limiting| RedisGW[(Redis Rate Limiter)]
 
@@ -30,9 +30,9 @@ graph TD
     NotifSvc === MongoDB_Notif[(MongoDB: Notification DB)]
 
     %% Synchronous Downstream Calls
-    OrderSvc -->|HTTP Feign Client / Propagated Token| CustSvc
-    OrderSvc -->|HTTP RestTemplate / Propagated Token| ProdSvc
-    OrderSvc -->|HTTP Feign Client / Propagated Token| PaySvc
+    OrderSvc -->|HTTP Feign / Token Propagated| CustSvc
+    OrderSvc -->|HTTP RestTemplate / Token Propagated| ProdSvc
+    OrderSvc -->|HTTP Feign / Token Propagated| PaySvc
 
     %% Asynchronous Events (Kafka)
     OrderSvc -->|Publish OrderConfirmation| Kafka[Kafka Message Broker]
@@ -40,10 +40,34 @@ graph TD
     Kafka -->|Consume Events| NotifSvc[Notification Service: Port 8040]
     NotifSvc -->|Email Dispatch| MailDev[MailDev SMTP Server]
 
-    %% Core Infra
-    Eureka[Eureka Discovery Server: Port 8761] <.- Registry -.> CustSvc & ProdSvc & OrderSvc & PaySvc & NotifSvc & GW
-    Config[Config Server: Port 8888] <.- Fetch Config -.> CustSvc & ProdSvc & OrderSvc & PaySvc & NotifSvc & GW
-    Tracing[(Zipkin Distributed Tracing)] <.- Push Spans -.> CustSvc & ProdSvc & OrderSvc & PaySvc & NotifSvc & GW
+    %% Core Infra Services
+    Eureka[Eureka Discovery Server: Port 8761]
+    Config[Config Server: Port 8888]
+    Tracing[(Zipkin Distributed Tracing)]
+
+    %% Service Registry
+    GW -.-> Eureka
+    CustSvc -.-> Eureka
+    ProdSvc -.-> Eureka
+    OrderSvc -.-> Eureka
+    PaySvc -.-> Eureka
+    NotifSvc -.-> Eureka
+
+    %% Config Clients
+    GW -.-> Config
+    CustSvc -.-> Config
+    ProdSvc -.-> Config
+    OrderSvc -.-> Config
+    PaySvc -.-> Config
+    NotifSvc -.-> Config
+
+    %% Tracing Client Push
+    GW -.-> Tracing
+    CustSvc -.-> Tracing
+    ProdSvc -.-> Tracing
+    OrderSvc -.-> Tracing
+    PaySvc -.-> Tracing
+    NotifSvc -.-> Tracing
 ```
 
 ---
