@@ -20,6 +20,7 @@ public class ProductService {
     private final ProductRepository repository;
     private final ProductMapper mapper;
 
+    @Transactional
     @CacheEvict(value = "products", allEntries = true)
     public Integer createProduct(
             ProductRequest request
