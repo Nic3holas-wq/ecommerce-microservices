@@ -49,6 +49,14 @@ services:
     command:
       - "start-dev"
 
+  redis:
+    image: redis:alpine
+    container_name: ms_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - microservices-net
+
   mongodb:
     image: mongo
     container_name: mongo_db
