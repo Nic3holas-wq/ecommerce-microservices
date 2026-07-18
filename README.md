@@ -10,64 +10,36 @@ Below is the high-level system architecture of the microservices ecosystem. It i
 
 ```mermaid
 graph TD
-    %% Ingress and Security
-    Client[Angular Frontend] -->|HTTP Request| GW[API Gateway: Port 8222]
-    GW -.->|Validate JWT| Keycloak[Keycloak: Port 9098]
-    GW -.->|Rate Limiting| RedisGW[(Redis Rate Limiter)]
+    %% Public Network
+    Angular[Angular Frontend] -->|Requests| GW[API Gateway: Port 8222]
+    GW -.->|Validate| Keycloak[Keycloak Security: Port 9098]
+    GW -.->|Rate Limit| RedisGW[(Redis Rate Limiter)]
 
-    %% API Gateway Routes
-    GW -->|/api/v1/customers/**| CustSvc[Customer Service: Port 8095]
-    GW -->|/api/v1/products/**| ProdSvc[Product Service: Port 8050]
-    GW -->|/api/v1/orders/**| OrderSvc[Order Service: Port 8070]
-    GW -->|/api/v1/payments/**| PaySvc[Payment Service: Port 8060]
+    subgraph PrivateNetwork [Private Network]
+        %% Microservices & Databases
+        CustSvc[Customer Service: Port 8095] === MongoCust[(MongoDB)]
+        ProdSvc[Product Service: Port 8050] === PGProd[(PostgreSQL)]
+        ProdSvc === RedisProd[(Redis Cache)]
+        OrderSvc[Order Service: Port 8070] === PGOrder[(PostgreSQL)]
+        PaySvc[Payment Service: Port 8060] === PGPay[(PostgreSQL)]
+        NotifSvc[Notification Service: Port 8040] === MongoNotif[(MongoDB)]
+        NotifSvc --> Mail[Mail Client: Port 1025]
 
-    %% Databases
-    CustSvc === MongoDB_Cust[(MongoDB: Customer DB)]
-    ProdSvc === PG_Prod[(PostgreSQL: Product DB)]
-    ProdSvc === Redis_Cache[(Redis Cache)]
-    OrderSvc === PG_Order[(PostgreSQL: Order DB)]
-    PaySvc === PG_Pay[(PostgreSQL: Payment DB)]
-    NotifSvc === MongoDB_Notif[(MongoDB: Notification DB)]
+        %% HTTP Interactions (Feign / RestTemplate)
+        OrderSvc -.->|HTTP Feign| CustSvc
+        OrderSvc -.->|HTTP RestTemplate| ProdSvc
+        OrderSvc -.->|HTTP Feign| PaySvc
 
-    %% Synchronous Downstream Calls
-    OrderSvc -->|HTTP Feign / Token Propagated| CustSvc
-    OrderSvc -->|HTTP RestTemplate / Token Propagated| ProdSvc
-    OrderSvc -->|HTTP Feign / Token Propagated| PaySvc
+        %% Async Event Stream (Kafka)
+        OrderSvc -->|Async Order Event| Kafka[Kafka Message Broker]
+        PaySvc -->|Async Payment Event| Kafka
+        Kafka --> NotifSvc
+    end
 
-    %% Asynchronous Events (Kafka)
-    OrderSvc -->|Publish OrderConfirmation| Kafka[Kafka Message Broker]
-    PaySvc -->|Publish PaymentConfirmation| Kafka
-    Kafka -->|Consume Events| NotifSvc[Notification Service: Port 8040]
-    NotifSvc -->|Email Dispatch| MailDev[MailDev SMTP Server]
-
-    %% Core Infra Services
-    Eureka[Eureka Discovery Server: Port 8761]
-    Config[Config Server: Port 8888]
-    Tracing[(Zipkin Distributed Tracing)]
-
-    %% Service Registry
-    GW -.-> Eureka
-    CustSvc -.-> Eureka
-    ProdSvc -.-> Eureka
-    OrderSvc -.-> Eureka
-    PaySvc -.-> Eureka
-    NotifSvc -.-> Eureka
-
-    %% Config Clients
-    GW -.-> Config
-    CustSvc -.-> Config
-    ProdSvc -.-> Config
-    OrderSvc -.-> Config
-    PaySvc -.-> Config
-    NotifSvc -.-> Config
-
-    %% Tracing Client Push
-    GW -.-> Tracing
-    CustSvc -.-> Tracing
-    ProdSvc -.-> Tracing
-    OrderSvc -.-> Tracing
-    PaySvc -.-> Tracing
-    NotifSvc -.-> Tracing
+    %% Core Infra & Monitoring
+    Config[Config Server: Port 8888] -.-> PrivateNetwork
+    Eureka[Eureka Server: Port 8761] -.-> PrivateNetwork
+    PrivateNetwork -.-> Tracing[(Zipkin Tracing)]
 ```
 
 ---
