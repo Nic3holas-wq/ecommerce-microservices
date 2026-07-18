@@ -1,6 +1,10 @@
 server:
   port: 8050
 spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:5432/product
