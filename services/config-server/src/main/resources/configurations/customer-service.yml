@@ -3,6 +3,7 @@ server:
 spring:
   data:
     mongodb:
+      auto-index-creation: true
       username: alibou
       password: alibou
       host: localhost
