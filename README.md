@@ -94,6 +94,33 @@ graph TD
 * Java 17 SDK (ensure `JAVA_HOME` is set correctly)
 
 ### Step 1: Spin up Infrastructure
+To start only the required databases and cache:
+```bash
+docker compose up -d --wait postgresql mongodb redis
+```
+
+| Server | Host address | Databases | Username / password |
+| --- | --- | --- | --- |
+| PostgreSQL 16 | `localhost:5434` | `product`, `order`, `payment` | `alibou` / `alibou` |
+| MongoDB 8.0 | `localhost:27017` | `customer`, `notification` | `alibou` / `alibou` (authentication database: `admin`) |
+| Redis 8 | `localhost:6380` | Default database (`0`) | No authentication |
+
+The PostgreSQL and Redis host ports avoid conflicts with other local projects.
+Containers on the Compose network use `postgresql:5432`, `mongodb:27017`, and
+`redis:6379`. In pgAdmin, register the PostgreSQL server using `postgresql:5432`.
+
+Initialization scripts in `docker/` create the databases on the first start with
+empty volumes. PostgreSQL and MongoDB data persist in named volumes. To apply
+the scripts to an existing instance without removing data:
+```bash
+docker compose exec -T postgresql psql -U alibou -d postgres -v ON_ERROR_STOP=1 < docker/postgres/init.sql
+docker compose exec -T mongodb mongosh --quiet -u alibou -p alibou --authenticationDatabase admin < docker/mongo/init.js
+```
+
+Product tables and seed data are managed by Flyway when Product Service starts.
+Order and Payment currently use Hibernate `ddl-auto: create`, which recreates
+their tables on service startup. These settings and credentials are for local development.
+
 Run the following command to start PostgreSQL, MongoDB, Kafka, Redis, Keycloak, Zipkin, and MailDev containers:
 ```bash
 docker compose up -d
